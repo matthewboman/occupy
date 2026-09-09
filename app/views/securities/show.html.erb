@@ -1,0 +1,71 @@
+<h1><%= @security.symbol %></h1>
+
+<p>
+  <strong>Name:</strong>
+  <%= @security.name %>
+</p>
+
+<p>
+  <strong>Type:</strong>
+  <%= @security.security_type %>
+</p>
+
+<p>
+  <strong>Exchange:</strong>
+  <%= @security.exchange %>
+</p>
+
+<h2>Market Analytics</h2>
+
+<table>
+  <tbody>
+    <tr>
+      <th>1 Day Return</th>
+      <td>
+        <%= @one_day_return.nil? ? "N/A" : number_to_percentage(@one_day_return, precision: 2) %>
+      </td>
+    </tr>
+
+    <tr>
+      <th>5 Day Return</th>
+      <td>
+        <%= @five_day_return.nil? ? "N/A" : number_to_percentage(@five_day_return, precision: 2) %>
+      </td>
+    </tr>
+
+    <tr>
+      <th>Volume Change</th>
+      <td>
+        <%= @volume_change.nil? ? "N/A" : number_to_percentage(@volume_change, precision: 2) %>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Market History</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Open</th>
+      <th>High</th>
+      <th>Low</th>
+      <th>Close</th>
+      <th>Volume</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @market_bars.each do |bar| %>
+      <tr>
+        <td><%= bar.recorded_at.to_date %></td>
+        <td><%= bar.open %></td>
+        <td><%= bar.high %></td>
+        <td><%= bar.low %></td>
+        <td><%= bar.close %></td>
+        <td><%= bar.volume %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

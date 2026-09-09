@@ -1,0 +1,29 @@
+<h1>Occupy</h1>
+
+<p>Market sentiment and prediction research dashboard.</p>
+
+<h2>Securities</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Symbol</th>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Exchange</th>
+      <th>Active</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @securities.each do |security| %>
+      <tr>
+        <td><%= link_to security.symbol, security_path(security) %></td>
+        <td><%= security.name %></td>
+        <td><%= security.security_type %></td>
+        <td><%= security.exchange %></td>
+        <td><%= security.is_active %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

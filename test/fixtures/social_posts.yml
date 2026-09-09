@@ -1,0 +1,19 @@
+nvda_post:
+  security: nvda
+  source: reddit
+  external_id: reddit_nvda_1
+  author: trader_one
+  body: NVDA calls are looking good this week
+  posted_at: 2026-09-09 10:00:00
+  score: 125
+  url: https://example.com/nvda
+
+gme_post:
+  security: gme
+  source: reddit
+  external_id: reddit_gme_1
+  author: trader_two
+  body: GME looks overextended
+  posted_at: 2026-09-09 11:00:00
+  score: 50
+  url: https://example.com/gme

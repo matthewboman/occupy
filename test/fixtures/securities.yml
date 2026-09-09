@@ -1,0 +1,13 @@
+nvda:
+  symbol: NVDA
+  name: NVIDIA Corporation
+  security_type: stock
+  exchange: NASDAQ
+  is_active: true
+
+gme:
+  symbol: GME
+  name: GameStop Corp.
+  security_type: stock
+  exchange: NYSE
+  is_active: true
