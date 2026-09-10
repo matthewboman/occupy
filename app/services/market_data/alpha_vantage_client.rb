@@ -18,10 +18,10 @@ module MarketData
       uri = URI(BASE_URL)
 
       uri.query = URI.encode_www_form(
-        function: "TIME_SERIES_DAILY",
-        symbol: symbol,
+        function:   "TIME_SERIES_DAILY",
+        symbol:     symbol,
         outputsize: "compact",
-        apikey: @api_key
+        apikey:     @api_key
       )
 
       response = Net::HTTP.get_response(uri)

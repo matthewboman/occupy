@@ -11,3 +11,10 @@ gme:
   security_type: stock
   exchange: NYSE
   is_active: true
+
+spy:
+  symbol: SPY
+  name: SPDR S&P 500 ETF Trust
+  security_type: etf
+  exchange: NYSE Arca
+  is_active: true

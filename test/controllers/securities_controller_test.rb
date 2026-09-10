@@ -16,20 +16,20 @@ class SecuritiesControllerTest < ActionDispatch::IntegrationTest
 
     older = security.market_bars.create!(
       recorded_at: Time.zone.parse("2026-09-08"),
-      open: 170.00,
-      high: 175.00,
-      low: 169.00,
-      close: 174.00,
-      volume: 100_000_000
+      open:        170.00,
+      high:        175.00,
+      low:         169.00,
+      close:       174.00,
+      volume:      100_000_000
     )
 
     newer = security.market_bars.create!(
       recorded_at: Time.zone.parse("2026-09-09"),
-      open: 174.00,
-      high: 178.00,
-      low: 173.00,
-      close: 177.00,
-      volume: 120_000_000
+      open:        174.00,
+      high:        178.00,
+      low:         173.00,
+      close:       177.00,
+      volume:      120_000_000
     )
 
     get security_path(security)
@@ -49,20 +49,20 @@ class SecuritiesControllerTest < ActionDispatch::IntegrationTest
 
     security.market_bars.create!(
       recorded_at: Time.zone.parse("2026-09-08"),
-      open: 100,
-      high: 100,
-      low: 100,
-      close: 100,
-      volume: 1_000
+      open:        100,
+      high:        100,
+      low:         100,
+      close:       100,
+      volume:      1_000
     )
 
     security.market_bars.create!(
       recorded_at: Time.zone.parse("2026-09-09"),
-      open: 110,
-      high: 110,
-      low: 110,
-      close: 110,
-      volume: 1_500
+      open:        110,
+      high:        110,
+      low:         110,
+      close:       110,
+      volume:      1_500
     )
 
     get security_path(security)

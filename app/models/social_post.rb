@@ -2,13 +2,23 @@ class SocialPost < ApplicationRecord
   has_many :security_mentions, dependent: :destroy
   has_many :securities, through: :security_mentions
 
-  validates :source, presence: true
+  validates :source,      presence: true
   validates :external_id, presence: true
-  validates :body, presence: true
-  validates :posted_at, presence: true
+  validates :body,        presence: true
+  validates :posted_at,   presence: true
 
   validates :external_id,
             uniqueness: {
               scope: :source
             }
+
+
+  scope :with_security_mentions, -> {
+    self.joins(:security_mentions)
+        .distinct
+  }
+
+  scope :without_security_mentions, -> {
+    self.where.missing(:security_mentions)
+  }
 end

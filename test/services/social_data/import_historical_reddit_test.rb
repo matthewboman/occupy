@@ -16,7 +16,7 @@ module SocialData
       end
 
       post = SocialPost.find_by!(
-        source: "reddit",
+        source:      "reddit",
         external_id: "abc123"
       )
 
@@ -49,12 +49,12 @@ module SocialData
 
     test "updates an existing post" do
       SocialPost.create!(
-        source: "reddit",
+        source:      "reddit",
         external_id: "abc123",
-        author: "old_author",
-        body: "Old body",
-        posted_at: Time.zone.parse("2023-12-01 10:00:00"),
-        score: 10
+        author:      "old_author",
+        body:        "Old body",
+        posted_at:   Time.zone.parse("2023-12-01 10:00:00"),
+        score:       10
       )
 
       file = create_csv(
@@ -69,7 +69,7 @@ module SocialData
       end
 
       post = SocialPost.find_by!(
-        source: "reddit",
+        source:      "reddit",
         external_id: "abc123"
       )
 

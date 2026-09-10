@@ -8,13 +8,13 @@ module SocialData
     API_URL   = "https://oauth.reddit.com"
 
     def initialize(
-      client_id: Rails.application.credentials.dig(:reddit, :client_id),
+      client_id:     Rails.application.credentials.dig(:reddit, :client_id),
       client_secret: Rails.application.credentials.dig(:reddit, :client_secret),
-      user_agent: Rails.application.credentials.dig(:reddit, :user_agent)
+      user_agent:    Rails.application.credentials.dig(:reddit, :user_agent)
     )
-      @client_id = client_id
+      @client_id     = client_id
       @client_secret = client_secret
-      @user_agent = user_agent
+      @user_agent    = user_agent
     end
 
     def new_posts(subreddit:, limit: 100)
@@ -25,14 +25,14 @@ module SocialData
       )
 
       uri.query = URI.encode_www_form(
-        limit: limit,
+        limit:    limit,
         raw_json: 1
       )
 
       request = Net::HTTP::Get.new(uri)
 
       request["Authorization"] = "Bearer #{token}"
-      request["User-Agent"] = @user_agent
+      request["User-Agent"]    = @user_agent
 
       response = Net::HTTP.start(
         uri.hostname,
@@ -57,8 +57,8 @@ module SocialData
       request = Net::HTTP::Post.new(uri)
 
       request["Authorization"] = basic_auth
-      request["User-Agent"] = @user_agent
-      request["Content-Type"] = "application/x-www-form-urlencoded"
+      request["User-Agent"]    = @user_agent
+      request["Content-Type"]  = "application/x-www-form-urlencoded"
 
       request.body = URI.encode_www_form(
         grant_type: "client_credentials"

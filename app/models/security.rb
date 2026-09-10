@@ -1,5 +1,5 @@
 class Security < ApplicationRecord
-  has_many :market_bars, dependent: :destroy
+  has_many :market_bars,       dependent: :destroy
   has_many :security_mentions, dependent: :destroy
   has_many :social_posts, through: :security_mentions
 
@@ -19,7 +19,7 @@ class Security < ApplicationRecord
 
     return if bars.length < days + 1
 
-    latest_close = bars.first.close.to_d
+    latest_close   = bars.first.close.to_d
     previous_close = bars.last.close.to_d
 
     ((latest_close - previous_close) / previous_close * 100).to_f
@@ -33,7 +33,7 @@ class Security < ApplicationRecord
 
     return if bars.length < 2
 
-    latest_volume = bars.first.volume.to_d
+    latest_volume   = bars.first.volume.to_d
     previous_volume = bars.last.volume.to_d
 
     return if previous_volume.zero?

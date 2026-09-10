@@ -10,8 +10,8 @@ class SocialPostTest < ActiveSupport::TestCase
   test "requires a source" do
     social_post = SocialPost.new(
       external_id: "abc123",
-      body: "NVDA looks bullish",
-      posted_at: Time.current
+      body:        "NVDA looks bullish",
+      posted_at:   Time.current
     )
 
     assert_not social_post.valid?
@@ -20,8 +20,8 @@ class SocialPostTest < ActiveSupport::TestCase
 
   test "requires an external id" do
     social_post = SocialPost.new(
-      source: "reddit",
-      body: "NVDA looks bullish",
+      source:    "reddit",
+      body:      "NVDA looks bullish",
       posted_at: Time.current
     )
 
@@ -31,9 +31,9 @@ class SocialPostTest < ActiveSupport::TestCase
 
   test "requires body" do
     social_post = SocialPost.new(
-      source: "reddit",
+      source:      "reddit",
       external_id: "abc123",
-      posted_at: Time.current
+      posted_at:   Time.current
     )
 
     assert_not social_post.valid?
@@ -42,9 +42,9 @@ class SocialPostTest < ActiveSupport::TestCase
 
   test "requires posted at" do
     social_post = SocialPost.new(
-      source: "reddit",
+      source:      "reddit",
       external_id: "abc123",
-      body: "NVDA looks bullish"
+      body:        "NVDA looks bullish"
     )
 
     assert_not social_post.valid?
@@ -55,10 +55,10 @@ class SocialPostTest < ActiveSupport::TestCase
     existing = social_posts(:nvda_post)
 
     duplicate = SocialPost.new(
-      source: existing.source,
+      source:      existing.source,
       external_id: existing.external_id,
-      body: "Duplicate Reddit post",
-      posted_at: Time.current
+      body:        "Duplicate Reddit post",
+      posted_at:   Time.current
     )
 
     assert_not duplicate.valid?
@@ -69,12 +69,30 @@ class SocialPostTest < ActiveSupport::TestCase
     existing = social_posts(:nvda_post)
 
     social_post = SocialPost.new(
-      source: "discord",
+      source:      "discord",
       external_id: existing.external_id,
-      body: "Same id but different source",
-      posted_at: Time.current
+      body:        "Same id but different source",
+      posted_at:   Time.current
     )
 
     assert social_post.valid?
+  end
+
+  test "with_security_mentions returns posts with matched securities" do
+    post = social_posts(:nvda_post)
+
+    assert_includes SocialPost.with_security_mentions, post
+  end
+
+  test "without_security_mentions returns posts with no matched securities" do
+    post = SocialPost.create!(
+      source:      "reddit",
+      external_id: "no-security-test",
+      body:        "The overall market seems strange today",
+      posted_at:   Time.current
+    )
+
+    assert_includes SocialPost.without_security_mentions, post
+    assert_not_includes SocialPost.with_security_mentions, post
   end
 end

@@ -16,11 +16,11 @@ class SecurityTest < ActiveSupport::TestCase
     ].each do |date, close, volume|
       @security.market_bars.create!(
         recorded_at: Time.zone.parse(date),
-        open: close,
-        high: close,
-        low: close,
-        close: close,
-        volume: volume
+        open:        close,
+        high:        close,
+        low:         close,
+        close:       close,
+        volume:      volume
       )
     end
   end
@@ -61,11 +61,11 @@ class SecurityTest < ActiveSupport::TestCase
 
     @security.market_bars.create!(
       recorded_at: Time.zone.parse("2026-09-08"),
-      open: 100,
-      high: 100,
-      low: 100,
-      close: 100,
-      volume: 1_000
+      open:        100,
+      high:        100,
+      low:         100,
+      close:       100,
+      volume:      1_000
     )
 
     assert_nil @security.return_for_days(1)

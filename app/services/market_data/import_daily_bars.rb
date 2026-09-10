@@ -25,10 +25,10 @@ module MarketData
                    recorded_at: Time.zone.parse(date)
                  )
                  .update!(
-                   open: values.fetch("1. open"),
-                   high: values.fetch("2. high"),
-                   low: values.fetch("3. low"),
-                   close: values.fetch("4. close"),
+                   open:   values.fetch("1. open"),
+                   high:   values.fetch("2. high"),
+                   low:    values.fetch("3. low"),
+                   close:  values.fetch("4. close"),
                    volume: values.fetch("5. volume")
                  )
       end

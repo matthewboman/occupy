@@ -89,11 +89,11 @@ module MarketData
     test "updates an existing bar when the provider returns new values" do
       @security.market_bars.create!(
         recorded_at: Time.zone.parse("2026-09-08"),
-        open: 170.25,
-        high: 174.10,
-        low: 169.80,
-        close: 173.42,
-        volume: 185_000_000
+        open:        170.25,
+        high:        174.10,
+        low:         169.80,
+        close:       173.42,
+        volume:      185_000_000
       )
 
       client = Object.new
