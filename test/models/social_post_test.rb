@@ -167,4 +167,23 @@ class SocialPostTest < ActiveSupport::TestCase
 
     assert_includes submission.replies, social_posts(:nvda_comment)
   end
+
+  test "for_subreddit returns posts for that subreddit" do
+    post = social_posts(:nvda_post)
+
+    assert_includes SocialPost.for_subreddit("wallstreetbets"), post
+  end
+
+  test "for_subreddit excludes posts from other subreddits" do
+    post = SocialPost.create!(
+      source: "reddit",
+      subreddit: "stocks",
+      external_id: "stocks-test",
+      record_type: "submission",
+      body: "NVDA discussion",
+      posted_at: Time.current
+    )
+
+    assert_not_includes SocialPost.for_subreddit("wallstreetbets"), post
+  end
 end

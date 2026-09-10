@@ -44,6 +44,10 @@ class SocialPost < ApplicationRecord
     self.where(record_type: "comment")
   }
 
+  scope :for_subreddit, ->(subreddit) {
+    where(subreddit: subreddit)
+  }
+
   scope :submissions, -> {
     self.where(record_type: "submission")
   }

@@ -1,5 +1,6 @@
 nvda_post:
   source: reddit
+  subreddit: wallstreetbets
   external_id: reddit_nvda_1
   record_type: submission
   author: trader_one
@@ -10,6 +11,7 @@ nvda_post:
 
 gme_post:
   source: reddit
+  subreddit: wallstreetbets
   external_id: reddit_gme_1
   record_type: submission
   author: trader_two
@@ -20,6 +22,7 @@ gme_post:
 
 nvda_comment:
   source: reddit
+  subreddit: wallstreetbets
   external_id: reddit_nvda_comment_1
   record_type: comment
   submission_external_id: reddit_nvda_1

@@ -6,10 +6,11 @@ module SocialData
     test "imports historical Reddit posts" do
       file = create_csv(
         <<~CSV
-          external_id,author,body,posted_at,score,url
-          abc123,trader_one,NVDA looks bullish,2023-12-01 10:00:00+00,100,https://reddit.com/example
+          external_id,subreddit,record_type,submission_external_id,parent_external_id,author,body,posted_at,score,url
+          abc123,wallstreetbets,submission,,,trader_one,NVDA looks bullish,2023-12-01 10:00:00+00,100,https://reddit.com/example
         CSV
       )
+
 
       assert_difference -> { SocialPost.count }, 1 do
         ImportHistoricalReddit.new(path: file.path).call
@@ -24,6 +25,7 @@ module SocialData
       assert_equal "NVDA looks bullish", post.body
       assert_equal 100, post.score
       assert_equal "https://reddit.com/example", post.url
+      assert_equal "wallstreetbets", post.subreddit
     ensure
       file&.unlink
     end
@@ -96,8 +98,8 @@ module SocialData
     test "imports historical Reddit comments" do
       file = create_csv(
         <<~CSV
-          external_id,record_type,submission_external_id,parent_external_id,author,body,posted_at,score,url
-          comment123,comment,submission123,submission123,trader_one,NVDA looks strong,2023-12-01 10:15:00+00,25,https://reddit.com/example/comment
+          external_id,subreddit,record_type,submission_external_id,parent_external_id,author,body,posted_at,score,url
+          comment123,wallstreetbets,comment,submission123,submission123,trader_one,NVDA looks strong,2023-12-01 10:15:00+00,25,https://reddit.com/example/comment
         CSV
       )
 
@@ -117,6 +119,62 @@ module SocialData
       assert_equal "submission123", comment.parent_external_id
       assert_equal "NVDA looks strong", comment.body
       assert_equal 25, comment.score
+    ensure
+      file&.unlink
+    end
+
+    test "imports records across multiple batches" do
+      file = Tempfile.new(
+        ["historical_reddit", ".csv"]
+      )
+
+      file.write(
+        "external_id,subreddit,record_type,submission_external_id,parent_external_id,author,body,posted_at,score,url\n"
+      )
+
+      1_001.times do |index|
+        file.write(
+          "batch#{index},wallstreetbets,comment,submission1,submission1,user#{index},Body #{index},2023-12-01 10:00:00+00,1,https://reddit.com/example/#{index}\n"
+        )
+      end
+
+      file.close
+
+      assert_difference -> { SocialPost.count }, 1_001 do
+        ImportHistoricalReddit.new(
+          path: file.path
+        ).call
+      end
+    ensure
+      file&.unlink
+    end
+
+    test "extracts security mentions for imported posts" do
+      file = Tempfile.new(
+        ["historical_reddit", ".csv"]
+      )
+
+      file.write(
+        <<~CSV
+          external_id,subreddit,record_type,submission_external_id,parent_external_id,author,body,posted_at,score,url
+          ticker123,wallstreetbets,submission,,,trader_one,$NVDA looks strong,2023-12-01 10:00:00+00,10,https://reddit.com/example
+        CSV
+      )
+
+      file.close
+
+      assert_difference -> { SecurityMention.count }, 1 do
+        ImportHistoricalReddit.new(
+          path: file.path
+        ).call
+      end
+
+      post = SocialPost.find_by!(
+        source: "reddit",
+        external_id: "ticker123"
+      )
+
+      assert_equal ["NVDA"], post.securities.pluck(:symbol)
     ensure
       file&.unlink
     end
