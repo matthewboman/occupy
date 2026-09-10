@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_10_153322) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_10_194911) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,6 +38,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_10_153322) do
     t.datetime "updated_at", null: false
     t.index ["is_active"], name: "index_securities_on_is_active"
     t.index ["symbol"], name: "index_securities_on_symbol", unique: true
+  end
+
+  create_table "security_mention_outcomes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "market_date", null: false
+    t.decimal "max_drawdown_10d", precision: 12, scale: 6
+    t.decimal "max_gain_10d", precision: 12, scale: 6
+    t.decimal "price_at_mention", precision: 18, scale: 6, null: false
+    t.decimal "return_10d", precision: 12, scale: 6
+    t.decimal "return_1d", precision: 12, scale: 6
+    t.decimal "return_3d", precision: 12, scale: 6
+    t.decimal "return_5d", precision: 12, scale: 6
+    t.bigint "security_mention_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["security_mention_id"], name: "index_security_mention_outcomes_on_security_mention_id"
+    t.index ["security_mention_id"], name: "index_security_mention_outcomes_unique", unique: true
   end
 
   create_table "security_mentions", force: :cascade do |t|
@@ -73,6 +89,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_10_153322) do
   end
 
   add_foreign_key "market_bars", "securities"
+  add_foreign_key "security_mention_outcomes", "security_mentions"
   add_foreign_key "security_mentions", "securities"
   add_foreign_key "security_mentions", "social_posts"
 end
