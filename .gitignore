@@ -35,6 +35,7 @@
 
 /vendor
 
+/data/market_data/
 /data/reddit/
 /data/reddit/temp/
 /data/reddit/import_state.json

@@ -130,5 +130,65 @@ module SocialData
         post.securities.reload.order(:symbol).pluck(:symbol)
       )
     end
+
+    test "does not treat ambiguous bare symbols as securities" do
+      post = SocialPost.create!(
+        source: "reddit",
+        subreddit: "wallstreetbets",
+        external_id: "ambiguous-symbols",
+        record_type: "comment",
+        author: "trader",
+        body: "AI is going to change IT FOR ALL of YOU",
+        posted_at: Time.current
+      )
+
+      SocialData::ExtractSecurityMentions.new(
+        social_post: post
+      ).call
+
+      assert_empty post.securities
+    end
+
+    test "allows ambiguous symbols when prefixed with dollar sign" do
+      security = Security.find_or_create_by!(
+        symbol: "AI"
+      )
+
+      post = SocialPost.create!(
+        source: "reddit",
+        subreddit: "wallstreetbets",
+        external_id: "cashtag-ai",
+        record_type: "comment",
+        author: "trader",
+        body: "$AI looks bullish",
+        posted_at: Time.current
+      )
+
+      SocialData::ExtractSecurityMentions.new(
+        social_post: post
+      ).call
+
+      assert_includes post.securities, security
+    end
+
+    test "still recognizes normal bare ticker symbols" do
+      nvda = securities(:nvda)
+
+      post = SocialPost.create!(
+        source: "reddit",
+        subreddit: "wallstreetbets",
+        external_id: "bare-nvda",
+        record_type: "comment",
+        author: "trader",
+        body: "NVDA looks bullish",
+        posted_at: Time.current
+      )
+
+      SocialData::ExtractSecurityMentions.new(
+        social_post: post
+      ).call
+
+      assert_includes post.securities, nvda
+    end
   end
 end

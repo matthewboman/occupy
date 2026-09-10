@@ -20,7 +20,7 @@ module MarketData
       uri.query = URI.encode_www_form(
         function:   "TIME_SERIES_DAILY",
         symbol:     symbol,
-        outputsize: "compact",
+        outputsize: "full",
         apikey:     @api_key
       )
 
