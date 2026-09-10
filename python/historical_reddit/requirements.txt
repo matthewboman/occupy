@@ -3,3 +3,4 @@ pyarrow
 pandas
 requests
 huggingface_hub
+modelscope

@@ -23,11 +23,14 @@ module SocialData
       )
 
       post.update!(
-        author:    row["author"],
-        body:      row.fetch("body"),
-        posted_at: row.fetch("posted_at"),
-        score:     row["score"],
-        url:       row["url"]
+        record_type:            row["record_type"].presence || "submission",
+        submission_external_id: row["submission_external_id"],
+        parent_external_id:     row["parent_external_id"],
+        author:                 row["author"],
+        body:                   row.fetch("body"),
+        posted_at:              row.fetch("posted_at"),
+        score:                  row["score"],
+        url:                    row["url"]
       )
     end
   end

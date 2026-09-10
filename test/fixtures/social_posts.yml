@@ -1,6 +1,7 @@
 nvda_post:
   source: reddit
   external_id: reddit_nvda_1
+  record_type: submission
   author: trader_one
   body: NVDA calls are looking good this week
   posted_at: 2026-09-09 10:00:00
@@ -10,8 +11,21 @@ nvda_post:
 gme_post:
   source: reddit
   external_id: reddit_gme_1
+  record_type: submission
   author: trader_two
   body: GME looks overextended
   posted_at: 2026-09-09 11:00:00
   score: 50
   url: https://example.com/gme
+
+nvda_comment:
+  source: reddit
+  external_id: reddit_nvda_comment_1
+  record_type: comment
+  submission_external_id: reddit_nvda_1
+  parent_external_id: reddit_nvda_1
+  author: commenter_one
+  body: NVDA still has room to run
+  posted_at: 2026-09-09 10:15:00
+  score: 20
+  url: https://example.com/nvda/comment

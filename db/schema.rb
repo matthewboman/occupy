@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_09_200138) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_10_143252) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -55,13 +55,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_200138) do
     t.text "body", null: false
     t.datetime "created_at", null: false
     t.string "external_id", null: false
+    t.string "parent_external_id"
     t.datetime "posted_at", null: false
+    t.string "record_type", default: "submission", null: false
     t.integer "score"
     t.string "source", null: false
+    t.string "submission_external_id"
     t.datetime "updated_at", null: false
     t.string "url"
+    t.index ["parent_external_id"], name: "index_social_posts_on_parent_external_id"
     t.index ["posted_at"], name: "index_social_posts_on_posted_at"
+    t.index ["record_type"], name: "index_social_posts_on_record_type"
     t.index ["source", "external_id"], name: "index_social_posts_on_source_and_external_id", unique: true
+    t.index ["submission_external_id"], name: "index_social_posts_on_submission_external_id"
   end
 
   add_foreign_key "market_bars", "securities"

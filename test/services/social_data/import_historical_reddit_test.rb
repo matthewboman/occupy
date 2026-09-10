@@ -93,6 +93,34 @@ module SocialData
       )
     end
 
+    test "imports historical Reddit comments" do
+      file = create_csv(
+        <<~CSV
+          external_id,record_type,submission_external_id,parent_external_id,author,body,posted_at,score,url
+          comment123,comment,submission123,submission123,trader_one,NVDA looks strong,2023-12-01 10:15:00+00,25,https://reddit.com/example/comment
+        CSV
+      )
+
+      assert_difference -> { SocialPost.count }, 1 do
+        ImportHistoricalReddit.new(
+          path: file.path
+        ).call
+      end
+
+      comment = SocialPost.find_by!(
+        source: "reddit",
+        external_id: "comment123"
+      )
+
+      assert_equal "comment", comment.record_type
+      assert_equal "submission123", comment.submission_external_id
+      assert_equal "submission123", comment.parent_external_id
+      assert_equal "NVDA looks strong", comment.body
+      assert_equal 25, comment.score
+    ensure
+      file&.unlink
+    end
+
     private
 
     def create_csv(contents)

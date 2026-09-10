@@ -1,3 +1,5 @@
+# Not currenly used
+
 from pathlib import Path
 
 import duckdb
