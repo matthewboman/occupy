@@ -1,15 +1,14 @@
 require "test_helper"
 
 class SocialPostTest < ActiveSupport::TestCase
-  test "belongs to a security" do
+  test "has securities through security mentions" do
     social_post = social_posts(:nvda_post)
 
-    assert_equal securities(:nvda), social_post.security
+    assert_includes social_post.securities, securities(:nvda)
   end
 
   test "requires a source" do
     social_post = SocialPost.new(
-      security: securities(:nvda),
       external_id: "abc123",
       body: "NVDA looks bullish",
       posted_at: Time.current
@@ -21,7 +20,6 @@ class SocialPostTest < ActiveSupport::TestCase
 
   test "requires an external id" do
     social_post = SocialPost.new(
-      security: securities(:nvda),
       source: "reddit",
       body: "NVDA looks bullish",
       posted_at: Time.current
@@ -33,7 +31,6 @@ class SocialPostTest < ActiveSupport::TestCase
 
   test "requires body" do
     social_post = SocialPost.new(
-      security: securities(:nvda),
       source: "reddit",
       external_id: "abc123",
       posted_at: Time.current
@@ -45,7 +42,6 @@ class SocialPostTest < ActiveSupport::TestCase
 
   test "requires posted at" do
     social_post = SocialPost.new(
-      security: securities(:nvda),
       source: "reddit",
       external_id: "abc123",
       body: "NVDA looks bullish"
@@ -59,7 +55,6 @@ class SocialPostTest < ActiveSupport::TestCase
     existing = social_posts(:nvda_post)
 
     duplicate = SocialPost.new(
-      security: securities(:nvda),
       source: existing.source,
       external_id: existing.external_id,
       body: "Duplicate Reddit post",
@@ -74,7 +69,6 @@ class SocialPostTest < ActiveSupport::TestCase
     existing = social_posts(:nvda_post)
 
     social_post = SocialPost.new(
-      security: securities(:nvda),
       source: "discord",
       external_id: existing.external_id,
       body: "Same id but different source",

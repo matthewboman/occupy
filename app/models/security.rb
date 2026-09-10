@@ -1,6 +1,7 @@
 class Security < ApplicationRecord
-  has_many :market_bars,  dependent: :destroy
-  has_many :social_posts, dependent: :destroy
+  has_many :market_bars, dependent: :destroy
+  has_many :security_mentions, dependent: :destroy
+  has_many :social_posts, through: :security_mentions
 
   validates :symbol, presence: true, uniqueness: true
 

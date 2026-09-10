@@ -1,0 +1,7 @@
+nvda_mention:
+  social_post: nvda_post
+  security: nvda
+
+gme_mention:
+  social_post: gme_post
+  security: gme

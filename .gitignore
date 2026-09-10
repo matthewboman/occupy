@@ -33,3 +33,10 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+/vendor
+
+/data/reddit/
+/data/reddit/temp/
+/data/reddit/import_state.json
+
+/python/historical_reddit/.venv

@@ -1,5 +1,4 @@
 nvda_post:
-  security: nvda
   source: reddit
   external_id: reddit_nvda_1
   author: trader_one
@@ -9,7 +8,6 @@ nvda_post:
   url: https://example.com/nvda
 
 gme_post:
-  security: gme
   source: reddit
   external_id: reddit_gme_1
   author: trader_two

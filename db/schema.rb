@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_09_185323) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_09_200138) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,6 +40,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_185323) do
     t.index ["symbol"], name: "index_securities_on_symbol", unique: true
   end
 
+  create_table "security_mentions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "security_id", null: false
+    t.bigint "social_post_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["security_id"], name: "index_security_mentions_on_security_id"
+    t.index ["social_post_id", "security_id"], name: "index_security_mentions_on_social_post_id_and_security_id", unique: true
+    t.index ["social_post_id"], name: "index_security_mentions_on_social_post_id"
+  end
+
   create_table "social_posts", force: :cascade do |t|
     t.string "author"
     t.text "body", null: false
@@ -47,16 +57,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_185323) do
     t.string "external_id", null: false
     t.datetime "posted_at", null: false
     t.integer "score"
-    t.bigint "security_id", null: false
     t.string "source", null: false
     t.datetime "updated_at", null: false
     t.string "url"
     t.index ["posted_at"], name: "index_social_posts_on_posted_at"
-    t.index ["security_id", "posted_at"], name: "index_social_posts_on_security_id_and_posted_at"
-    t.index ["security_id"], name: "index_social_posts_on_security_id"
     t.index ["source", "external_id"], name: "index_social_posts_on_source_and_external_id", unique: true
   end
 
   add_foreign_key "market_bars", "securities"
-  add_foreign_key "social_posts", "securities"
+  add_foreign_key "security_mentions", "securities"
+  add_foreign_key "security_mentions", "social_posts"
 end

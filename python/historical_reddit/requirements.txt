@@ -1,0 +1,5 @@
+duckdb
+pyarrow
+pandas
+requests
+huggingface_hub
