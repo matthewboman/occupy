@@ -20,7 +20,14 @@ PROCESSOR = (
 
 BASE_URL = "https://arctic-shift.photon-reddit.com"
 
-REQUEST_DELAY = 3.0
+STATE_FILE = (
+    PROJECT_ROOT
+    / "data"
+    / "reddit"
+    / "download_history_state.json"
+)
+
+REQUEST_DELAY = 2.0
 REQUEST_TIMEOUT = 60
 
 LIMIT = 100
@@ -88,6 +95,93 @@ def format_timestamp(timestamp):
     )
 
 
+def load_state():
+    if not STATE_FILE.exists():
+        return {
+            "completed": []
+        }
+
+    with STATE_FILE.open() as handle:
+        state = json.load(handle)
+
+    state["completed"] = state.get(
+        "completed",
+        [],
+    )
+
+    return state
+
+
+def save_state(state):
+    STATE_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    temporary_file = STATE_FILE.with_suffix(
+        ".tmp"
+    )
+
+    with temporary_file.open("w") as handle:
+        json.dump(
+            state,
+            handle,
+            indent=2,
+            sort_keys=True,
+        )
+
+    temporary_file.replace(
+        STATE_FILE
+    )
+
+
+def checkpoint_key(
+    subreddit,
+    record_type,
+    day,
+):
+    return (
+        f"{subreddit.lower()}:"
+        f"{record_type}:"
+        f"{day:%Y-%m-%d}"
+    )
+
+
+def completed(
+    state,
+    subreddit,
+    record_type,
+    day,
+):
+    key = checkpoint_key(
+        subreddit,
+        record_type,
+        day,
+    )
+
+    return key in state["completed"]
+
+
+def mark_completed(
+    state,
+    subreddit,
+    record_type,
+    day,
+):
+    key = checkpoint_key(
+        subreddit,
+        record_type,
+        day,
+    )
+
+    if key not in state["completed"]:
+        state["completed"].append(
+            key
+        )
+
+    save_state(state)
+
+
 def request_page(
     subreddit,
     record_type,
@@ -104,20 +198,48 @@ def request_page(
 
     retry_delay = INITIAL_RETRY_DELAY
 
-    for attempt in range(MAX_RETRIES + 1):
-        response = requests.get(
-            endpoint(record_type),
-            params=params,
-            timeout=REQUEST_TIMEOUT,
-            headers={
-                "User-Agent": "occupy-historical-reddit-importer/1.0"
-            },
-        )
+    for attempt in range(
+        MAX_RETRIES + 1
+    ):
+        try:
+            response = requests.get(
+                endpoint(record_type),
+                params=params,
+                timeout=REQUEST_TIMEOUT,
+                headers={
+                    "User-Agent":
+                        "occupy-historical-reddit-importer/1.0"
+                },
+            )
+        except requests.RequestException as error:
+            if attempt >= MAX_RETRIES:
+                raise
+
+            print(
+                f"Request failed: {error}"
+            )
+
+            print(
+                f"Retrying in {retry_delay} seconds "
+                f"(attempt {attempt + 1}/{MAX_RETRIES})",
+                flush=True,
+            )
+
+            time.sleep(
+                retry_delay
+            )
+
+            retry_delay *= 2
+
+            continue
 
         if response.ok:
             payload = response.json()
 
-            return payload.get("data", [])
+            return payload.get(
+                "data",
+                [],
+            )
 
         timeout_error = (
             response.status_code == 422
@@ -128,9 +250,16 @@ def request_page(
             response.status_code == 429
         )
 
+        server_error = (
+            500
+            <= response.status_code
+            <= 599
+        )
+
         if (
             timeout_error
             or rate_limited
+            or server_error
         ) and attempt < MAX_RETRIES:
             print(
                 f"Arctic Shift returned HTTP "
@@ -144,7 +273,9 @@ def request_page(
                 flush=True,
             )
 
-            time.sleep(retry_delay)
+            time.sleep(
+                retry_delay
+            )
 
             retry_delay *= 2
 
@@ -173,7 +304,10 @@ def request_page(
     )
 
 
-def existing_download_state(output_file, start):
+def existing_download_state(
+    output_file,
+    start,
+):
     if not output_file.exists():
         return (
             int(start.timestamp()),
@@ -194,10 +328,14 @@ def existing_download_state(output_file, start):
 
             record = json.loads(line)
 
-            external_id = record.get("id")
+            external_id = record.get(
+                "id"
+            )
 
             if external_id:
-                seen_ids.add(external_id)
+                seen_ids.add(
+                    external_id
+                )
 
             created_utc = record.get(
                 "created_utc"
@@ -239,7 +377,9 @@ def download_day(
     )
 
     start = day
-    finish = day + timedelta(days=1)
+    finish = day + timedelta(
+        days=1
+    )
 
     (
         cursor,
@@ -304,8 +444,10 @@ def download_day(
 
             handle.flush()
 
-            last_created_utc = records[-1].get(
-                "created_utc"
+            last_created_utc = (
+                records[-1].get(
+                    "created_utc"
+                )
             )
 
             if last_created_utc is None:
@@ -374,6 +516,69 @@ def process_download(
     )
 
 
+def process_day(
+    state,
+    subreddit,
+    record_type,
+    day,
+    delete_raw,
+):
+    if completed(
+        state,
+        subreddit,
+        record_type,
+        day,
+    ):
+        print(
+            f"Skipping completed "
+            f"r/{subreddit} "
+            f"{record_type} "
+            f"{day.date()}"
+        )
+
+        return True
+
+    try:
+        input_file = download_day(
+            subreddit=subreddit,
+            record_type=record_type,
+            day=day,
+        )
+
+        process_download(
+            subreddit=subreddit,
+            record_type=record_type,
+            input_file=input_file,
+            delete_raw=delete_raw,
+        )
+
+        mark_completed(
+            state,
+            subreddit,
+            record_type,
+            day,
+        )
+
+        print(
+            f"Completed r/{subreddit} "
+            f"{record_type} "
+            f"{day.date()}"
+        )
+
+        return True
+
+    except Exception as error:
+        print(
+            f"FAILED r/{subreddit} "
+            f"{record_type} "
+            f"{day.date()}: "
+            f"{error}",
+            file=sys.stderr,
+        )
+
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -435,26 +640,43 @@ def main():
         ]
     )
 
+    state = load_state()
+
+    succeeded = 0
+    failed = 0
+
     day = start
 
     while day < end:
         for record_type in record_types:
-            input_file = download_day(
+            success = process_day(
+                state=state,
                 subreddit=args.subreddit,
                 record_type=record_type,
                 day=day,
-            )
-
-            process_download(
-                subreddit=args.subreddit,
-                record_type=record_type,
-                input_file=input_file,
                 delete_raw=args.delete_raw,
             )
+
+            if success:
+                succeeded += 1
+            else:
+                failed += 1
 
         day += timedelta(
             days=1
         )
+
+    print()
+    print(
+        f"Completed/skipped routes: "
+        f"{succeeded}"
+    )
+    print(
+        f"Failed routes: {failed}"
+    )
+
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
