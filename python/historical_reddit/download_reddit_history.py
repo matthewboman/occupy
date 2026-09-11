@@ -18,7 +18,12 @@ PROCESSOR = (
     / "process_reddit_archive.py"
 )
 
-BASE_URL = "https://arctic-shift.photon-reddit.com"
+DEFAULT_SUBREDDITS_FILE = (
+    PROJECT_ROOT
+    / "python"
+    / "historical_reddit"
+    / "reddit_subreddits.txt"
+)
 
 STATE_FILE = (
     PROJECT_ROOT
@@ -26,6 +31,22 @@ STATE_FILE = (
     / "reddit"
     / "download_history_state.json"
 )
+
+IMPORT_STATE_FILE = (
+    PROJECT_ROOT
+    / "data"
+    / "reddit"
+    / "archive_import_state.json"
+)
+
+MANIFEST_FILE = (
+    PROJECT_ROOT
+    / "data"
+    / "reddit"
+    / "download_manifest.json"
+)
+
+BASE_URL = "https://arctic-shift.photon-reddit.com"
 
 REQUEST_DELAY = 2.0
 REQUEST_TIMEOUT = 60
@@ -40,17 +61,66 @@ def parse_date(value):
     return datetime.strptime(
         value,
         "%Y-%m-%d",
-    ).replace(tzinfo=timezone.utc)
+    ).replace(
+        tzinfo=timezone.utc
+    )
+
+
+def load_subreddits(path):
+    if not path.exists():
+        raise RuntimeError(
+            f"Subreddit file not found: {path}"
+        )
+
+    subreddits = []
+
+    with path.open() as handle:
+        for line in handle:
+            subreddit = line.strip()
+
+            if not subreddit:
+                continue
+
+            if subreddit.startswith("#"):
+                continue
+
+            if subreddit.lower().startswith("r/"):
+                subreddit = subreddit[2:]
+
+            subreddits.append(
+                subreddit
+            )
+
+    subreddits = list(
+        dict.fromkeys(
+            subreddits
+        )
+    )
+
+    if not subreddits:
+        raise RuntimeError(
+            f"No subreddits found in {path}"
+        )
+
+    return subreddits
 
 
 def endpoint(record_type):
     if record_type == "submission":
-        return f"{BASE_URL}/api/posts/search"
+        return (
+            f"{BASE_URL}/api/posts/search"
+        )
 
-    return f"{BASE_URL}/api/comments/search"
+    return (
+        f"{BASE_URL}/api/comments/search"
+    )
 
 
-def raw_directory(subreddit, record_type, day):
+def raw_directory(
+    subreddit,
+    record_type,
+    day,
+):
     directory_name = (
         "submissions"
         if record_type == "submission"
@@ -69,7 +139,11 @@ def raw_directory(subreddit, record_type, day):
     )
 
 
-def raw_file(subreddit, record_type, day):
+def raw_file(
+    subreddit,
+    record_type,
+    day,
+):
     directory = raw_directory(
         subreddit,
         record_type,
@@ -82,7 +156,9 @@ def raw_file(subreddit, record_type, day):
     )
 
     return directory / (
-        f"{subreddit}_{record_type}_{day:%Y_%m_%d}.jsonl"
+        f"{subreddit}_"
+        f"{record_type}_"
+        f"{day:%Y_%m_%d}.jsonl"
     )
 
 
@@ -135,6 +211,23 @@ def save_state(state):
     )
 
 
+def load_import_state():
+    if not IMPORT_STATE_FILE.exists():
+        return {
+            "completed": []
+        }
+
+    with IMPORT_STATE_FILE.open() as handle:
+        state = json.load(handle)
+
+    state["completed"] = state.get(
+        "completed",
+        [],
+    )
+
+    return state
+
+
 def checkpoint_key(
     subreddit,
     record_type,
@@ -144,6 +237,22 @@ def checkpoint_key(
         f"{subreddit.lower()}:"
         f"{record_type}:"
         f"{day:%Y-%m-%d}"
+    )
+
+
+def import_checkpoint_key(
+    input_file,
+    record_type,
+    subreddit,
+):
+    relative_path = input_file.relative_to(
+        PROJECT_ROOT
+    )
+
+    return (
+        f"{subreddit.lower()}:"
+        f"{record_type}:"
+        f"{relative_path}"
     )
 
 
@@ -179,7 +288,9 @@ def mark_completed(
             key
         )
 
-    save_state(state)
+    save_state(
+        state
+    )
 
 
 def request_page(
@@ -211,6 +322,7 @@ def request_page(
                         "occupy-historical-reddit-importer/1.0"
                 },
             )
+
         except requests.RequestException as error:
             if attempt >= MAX_RETRIES:
                 raise
@@ -220,8 +332,11 @@ def request_page(
             )
 
             print(
-                f"Retrying in {retry_delay} seconds "
-                f"(attempt {attempt + 1}/{MAX_RETRIES})",
+                f"Retrying in "
+                f"{retry_delay} seconds "
+                f"(attempt "
+                f"{attempt + 1}/"
+                f"{MAX_RETRIES})",
                 flush=True,
             )
 
@@ -243,7 +358,8 @@ def request_page(
 
         timeout_error = (
             response.status_code == 422
-            and "timeout" in response.text.lower()
+            and "timeout"
+            in response.text.lower()
         )
 
         rate_limited = (
@@ -268,8 +384,11 @@ def request_page(
             )
 
             print(
-                f"Retrying in {retry_delay} seconds "
-                f"(attempt {attempt + 1}/{MAX_RETRIES})",
+                f"Retrying in "
+                f"{retry_delay} seconds "
+                f"(attempt "
+                f"{attempt + 1}/"
+                f"{MAX_RETRIES})",
                 flush=True,
             )
 
@@ -326,7 +445,9 @@ def existing_download_state(
             if not line:
                 continue
 
-            record = json.loads(line)
+            record = json.loads(
+                line
+            )
 
             external_id = record.get(
                 "id"
@@ -377,6 +498,7 @@ def download_day(
     )
 
     start = day
+
     finish = day + timedelta(
         days=1
     )
@@ -487,21 +609,61 @@ def download_day(
     return output_file
 
 
-def process_download(
-    subreddit,
-    record_type,
-    input_file,
+def save_manifest(routes):
+    MANIFEST_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    manifest = []
+
+    for route in routes:
+        manifest.append(
+            {
+                "input_file": str(
+                    route["input_file"]
+                ),
+                "subreddit": (
+                    route["subreddit"]
+                ),
+                "record_type": (
+                    route["record_type"]
+                ),
+            }
+        )
+
+    temporary_file = MANIFEST_FILE.with_suffix(
+        ".tmp"
+    )
+
+    with temporary_file.open("w") as handle:
+        json.dump(
+            manifest,
+            handle,
+            indent=2,
+        )
+
+    temporary_file.replace(
+        MANIFEST_FILE
+    )
+
+
+def process_downloads(
+    routes,
     delete_raw,
 ):
+    if not routes:
+        return True
+
+    save_manifest(
+        routes
+    )
+
     command = [
         sys.executable,
         str(PROCESSOR),
-        "--subreddit",
-        subreddit,
-        "--type",
-        record_type,
-        "--input-dir",
-        str(input_file.parent),
+        "--manifest",
+        str(MANIFEST_FILE),
     ]
 
     if delete_raw:
@@ -509,82 +671,57 @@ def process_download(
             "--delete-raw"
         )
 
-    subprocess.run(
+    result = subprocess.run(
         command,
         cwd=PROJECT_ROOT,
-        check=True,
+        check=False,
     )
 
+    return result.returncode == 0
 
-def process_day(
+
+def update_download_checkpoints(
     state,
-    subreddit,
-    record_type,
-    day,
-    delete_raw,
+    routes,
 ):
-    if completed(
-        state,
-        subreddit,
-        record_type,
-        day,
-    ):
-        print(
-            f"Skipping completed "
-            f"r/{subreddit} "
-            f"{record_type} "
-            f"{day.date()}"
+    import_state = load_import_state()
+
+    imported = set(
+        import_state["completed"]
+    )
+
+    completed_count = 0
+
+    for route in routes:
+        key = import_checkpoint_key(
+            route["input_file"],
+            route["record_type"],
+            route["subreddit"],
         )
 
-        return True
-
-    try:
-        input_file = download_day(
-            subreddit=subreddit,
-            record_type=record_type,
-            day=day,
-        )
-
-        process_download(
-            subreddit=subreddit,
-            record_type=record_type,
-            input_file=input_file,
-            delete_raw=delete_raw,
-        )
+        if key not in imported:
+            continue
 
         mark_completed(
             state,
-            subreddit,
-            record_type,
-            day,
+            route["subreddit"],
+            route["record_type"],
+            route["day"],
         )
 
-        print(
-            f"Completed r/{subreddit} "
-            f"{record_type} "
-            f"{day.date()}"
-        )
+        completed_count += 1
 
-        return True
-
-    except Exception as error:
-        print(
-            f"FAILED r/{subreddit} "
-            f"{record_type} "
-            f"{day.date()}: "
-            f"{error}",
-            file=sys.stderr,
-        )
-
-        return False
+    return completed_count
 
 
 def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--subreddit",
-        required=True,
+        "--subreddits-file",
+        default=str(
+            DEFAULT_SUBREDDITS_FILE
+        ),
     )
 
     parser.add_argument(
@@ -629,6 +766,14 @@ def main():
             "--end must be after --start"
         )
 
+    subreddits_file = Path(
+        args.subreddits_file
+    ).resolve()
+
+    subreddits = load_subreddits(
+        subreddits_file
+    )
+
     record_types = (
         [
             "submission",
@@ -642,25 +787,78 @@ def main():
 
     state = load_state()
 
-    succeeded = 0
-    failed = 0
+    routes = []
+
+    skipped = 0
+    download_failed = 0
+
+    print(
+        f"Subreddits: "
+        f"{', '.join(subreddits)}"
+    )
+
+    print(
+        f"Date range: "
+        f"{start.date()} "
+        f"through "
+        f"{(end - timedelta(days=1)).date()}"
+    )
+
+    print()
 
     day = start
 
     while day < end:
-        for record_type in record_types:
-            success = process_day(
-                state=state,
-                subreddit=args.subreddit,
-                record_type=record_type,
-                day=day,
-                delete_raw=args.delete_raw,
-            )
+        for subreddit in subreddits:
+            for record_type in record_types:
+                if completed(
+                    state,
+                    subreddit,
+                    record_type,
+                    day,
+                ):
+                    print(
+                        f"Skipping completed "
+                        f"r/{subreddit} "
+                        f"{record_type} "
+                        f"{day.date()}"
+                    )
 
-            if success:
-                succeeded += 1
-            else:
-                failed += 1
+                    skipped += 1
+
+                    continue
+
+                try:
+                    input_file = download_day(
+                        subreddit=subreddit,
+                        record_type=record_type,
+                        day=day,
+                    )
+
+                    routes.append(
+                        {
+                            "input_file":
+                                input_file,
+                            "subreddit":
+                                subreddit,
+                            "record_type":
+                                record_type,
+                            "day":
+                                day,
+                        }
+                    )
+
+                except Exception as error:
+                    print(
+                        f"FAILED download "
+                        f"r/{subreddit} "
+                        f"{record_type} "
+                        f"{day.date()}: "
+                        f"{error}",
+                        file=sys.stderr,
+                    )
+
+                    download_failed += 1
 
         day += timedelta(
             days=1
@@ -668,14 +866,41 @@ def main():
 
     print()
     print(
-        f"Completed/skipped routes: "
-        f"{succeeded}"
-    )
-    print(
-        f"Failed routes: {failed}"
+        f"Downloaded routes ready "
+        f"for processing: {len(routes)}"
     )
 
-    if failed:
+    process_success = process_downloads(
+        routes,
+        args.delete_raw,
+    )
+
+    imported = update_download_checkpoints(
+        state,
+        routes,
+    )
+
+    print()
+    print(
+        f"Previously completed routes: "
+        f"{skipped}"
+    )
+
+    print(
+        f"Newly imported routes: "
+        f"{imported}"
+    )
+
+    print(
+        f"Download failures: "
+        f"{download_failed}"
+    )
+
+    if (
+        download_failed
+        or not process_success
+        or imported != len(routes)
+    ):
         sys.exit(1)
 
 

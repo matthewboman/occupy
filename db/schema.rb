@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_11_133802) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_11_200531) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -22,10 +22,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_11_133802) do
     t.decimal "open", precision: 18, scale: 6
     t.datetime "recorded_at", null: false
     t.bigint "security_id", null: false
+    t.text "suspicion_reasons", default: [], null: false, array: true
+    t.boolean "suspicious", default: false, null: false
     t.datetime "updated_at", null: false
     t.bigint "volume"
     t.index ["security_id", "recorded_at"], name: "index_market_bars_on_security_id_and_recorded_at", unique: true
     t.index ["security_id"], name: "index_market_bars_on_security_id"
+    t.index ["suspicious"], name: "index_market_bars_on_suspicious"
   end
 
   create_table "securities", force: :cascade do |t|

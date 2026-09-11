@@ -1,0 +1,10 @@
+wallstreetbets
+stocks
+options
+StockMarket
+pennystocks
+ValueInvesting
+SecurityAnalysis
+Daytrading
+thetagang
+smallstreetbets

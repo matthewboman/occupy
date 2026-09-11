@@ -31,10 +31,19 @@ STATE_FILE = (
 
 def load_state():
     if not STATE_FILE.exists():
-        return {"completed": []}
+        return {
+            "completed": []
+        }
 
     with STATE_FILE.open() as handle:
-        return json.load(handle)
+        state = json.load(handle)
+
+    state["completed"] = state.get(
+        "completed",
+        [],
+    )
+
+    return state
 
 
 def save_state(state):
@@ -43,7 +52,11 @@ def save_state(state):
         exist_ok=True,
     )
 
-    with STATE_FILE.open("w") as handle:
+    temporary_file = STATE_FILE.with_suffix(
+        ".tmp"
+    )
+
+    with temporary_file.open("w") as handle:
         json.dump(
             state,
             handle,
@@ -51,18 +64,33 @@ def save_state(state):
             sort_keys=True,
         )
 
+    temporary_file.replace(
+        STATE_FILE
+    )
 
-def checkpoint_key(input_file, record_type, subreddit):
-    relative_path = input_file.relative_to(PROJECT_ROOT)
+
+def checkpoint_key(
+    input_file,
+    record_type,
+    subreddit,
+):
+    relative_path = input_file.relative_to(
+        PROJECT_ROOT
+    )
 
     return (
-        f"{subreddit}:"
+        f"{subreddit.lower()}:"
         f"{record_type}:"
         f"{relative_path}"
     )
 
 
-def normalize_file(input_file, output_file, record_type, subreddit):
+def normalize_file(
+    input_file,
+    output_file,
+    record_type,
+    subreddit,
+):
     subprocess.run(
         [
             sys.executable,
@@ -81,7 +109,9 @@ def normalize_file(input_file, output_file, record_type, subreddit):
 
 
 def import_into_rails(output_file):
-    relative_path = output_file.relative_to(PROJECT_ROOT)
+    relative_path = output_file.relative_to(
+        PROJECT_ROOT
+    )
 
     subprocess.run(
         [
@@ -108,16 +138,34 @@ def process_file(
     )
 
     if key in state["completed"]:
-        print(f"Skipping completed {input_file}")
+        print(
+            f"Skipping completed "
+            f"r/{subreddit} "
+            f"{record_type} "
+            f"{input_file.name}"
+        )
+
+        if delete_raw and input_file.exists():
+            input_file.unlink()
+
         return True
 
     output_file = (
         NORMALIZED_DIR
-        / f"{input_file.stem}_{record_type}_{subreddit}.csv"
+        / (
+            f"{subreddit}_"
+            f"{record_type}_"
+            f"{input_file.stem}.csv"
+        )
     )
 
     try:
-        print(f"Processing {input_file}")
+        print(
+            f"Processing "
+            f"r/{subreddit} "
+            f"{record_type} "
+            f"{input_file.name}"
+        )
 
         normalize_file(
             input_file,
@@ -126,10 +174,17 @@ def process_file(
             subreddit,
         )
 
-        import_into_rails(output_file)
+        import_into_rails(
+            output_file
+        )
 
-        state["completed"].append(key)
-        save_state(state)
+        state["completed"].append(
+            key
+        )
+
+        save_state(
+            state
+        )
 
         if output_file.exists():
             output_file.unlink()
@@ -137,38 +192,48 @@ def process_file(
         if delete_raw and input_file.exists():
             input_file.unlink()
 
-        print(f"Completed {input_file}")
+        print(
+            f"Completed "
+            f"r/{subreddit} "
+            f"{record_type} "
+            f"{input_file.name}"
+        )
 
         return True
 
     except Exception as error:
         print(
-            f"FAILED {input_file}: {error}",
+            f"FAILED "
+            f"r/{subreddit} "
+            f"{record_type} "
+            f"{input_file.name}: "
+            f"{error}",
             file=sys.stderr,
         )
 
+        if output_file.exists():
+            output_file.unlink()
+
         return False
+
+
+def load_manifest(path):
+    with path.open() as handle:
+        manifest = json.load(handle)
+
+    if not isinstance(manifest, list):
+        raise RuntimeError(
+            "Manifest must contain a JSON array"
+        )
+
+    return manifest
 
 
 def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--subreddit",
-        required=True,
-    )
-
-    parser.add_argument(
-        "--type",
-        choices=[
-            "submission",
-            "comment",
-        ],
-        required=True,
-    )
-
-    parser.add_argument(
-        "--input-dir",
+        "--manifest",
         required=True,
     )
 
@@ -179,11 +244,14 @@ def main():
 
     args = parser.parse_args()
 
-    input_dir = Path(args.input_dir).resolve()
+    manifest_file = Path(
+        args.manifest
+    ).resolve()
 
-    if not input_dir.exists():
+    if not manifest_file.exists():
         raise RuntimeError(
-            f"Input directory not found: {input_dir}"
+            f"Manifest not found: "
+            f"{manifest_file}"
         )
 
     NORMALIZED_DIR.mkdir(
@@ -191,42 +259,51 @@ def main():
         exist_ok=True,
     )
 
-    files = sorted(
-        path
-        for path in input_dir.iterdir()
-        if path.is_file()
-        and path.suffix.lower() in [
-            ".json",
-            ".jsonl",
-            ".ndjson",
-        ]
+    manifest = load_manifest(
+        manifest_file
     )
-
-    if not files:
-        raise RuntimeError(
-            f"No supported archive files found in {input_dir}"
-        )
 
     state = load_state()
 
     succeeded = 0
     failed = 0
 
-    for input_file in files:
+    for route in manifest:
+        input_file = Path(
+            route["input_file"]
+        ).resolve()
+
+        if not input_file.exists():
+            print(
+                f"FAILED missing raw file: "
+                f"{input_file}",
+                file=sys.stderr,
+            )
+
+            failed += 1
+
+            continue
+
         if process_file(
-            input_file,
-            args.type,
-            args.subreddit,
-            args.delete_raw,
-            state,
+            input_file=input_file,
+            record_type=route["record_type"],
+            subreddit=route["subreddit"],
+            delete_raw=args.delete_raw,
+            state=state,
         ):
             succeeded += 1
         else:
             failed += 1
 
     print()
-    print(f"Completed/skipped files: {succeeded}")
-    print(f"Failed files: {failed}")
+    print(
+        f"Completed/skipped files: "
+        f"{succeeded}"
+    )
+
+    print(
+        f"Failed files: {failed}"
+    )
 
     if failed:
         sys.exit(1)
