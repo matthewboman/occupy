@@ -15,12 +15,14 @@ module MarketData
     def initialize(
       client: StashGammaClient.new,
       start_date: START_DATE,
+      end_date: Date.current,
       request_delay: REQUEST_DELAY,
       state_path: DEFAULT_STATE_PATH,
       min_mentions: MIN_MENTIONS
     )
       @client = client
       @start_date = start_date
+      @end_date = end_date
       @request_delay = request_delay
       @state_path = Pathname.new(state_path)
       @min_mentions = min_mentions
@@ -31,26 +33,32 @@ module MarketData
       securities = mentioned_securities.to_a
 
       puts "Mentioned securities: #{securities.count}"
-      puts "Already completed: #{completed_symbols.count}"
       puts "Unavailable: #{unavailable_symbols.count}"
+      puts "Backfill through: #{@end_date}"
 
       securities.each_with_index do |security, index|
-        if completed?(security)
-          puts "Skipping completed #{security.symbol}"
-          next
-        end
-
         if unavailable?(security)
           puts "Skipping unavailable #{security.symbol}"
           next
         end
 
-        puts "Backfilling #{security.symbol}"
+        security_start_date = next_start_date(security)
+
+        if security_start_date > @end_date
+          puts "Already current #{security.symbol}"
+          next
+        end
+
+        puts(
+          "Backfilling #{security.symbol}: " \
+          "#{security_start_date} through #{@end_date}"
+        )
 
         begin
-          backfill_security(security)
-
-          mark_completed(security)
+          backfill_security(
+            security,
+            security_start_date
+          )
 
           puts "Completed #{security.symbol}"
         rescue StashGammaClient::Error => error
@@ -78,7 +86,6 @@ module MarketData
 
       puts
       puts "Backfill finished"
-      puts "Completed symbols: #{completed_symbols.count}"
       puts "Unavailable symbols: #{unavailable_symbols.count}"
     end
 
@@ -95,18 +102,29 @@ module MarketData
         .order(:symbol)
     end
 
-    def backfill_security(security)
+    def next_start_date(security)
+      latest_recorded_at = security.market_bars.maximum(
+        :recorded_at
+      )
+
+      return @start_date if latest_recorded_at.blank?
+
+      [
+        latest_recorded_at.to_date + 1.day,
+        @start_date
+      ].max
+    end
+
+    def backfill_security(
+      security,
+      start_date
+    )
       ImportDailyBars.new(
         security: security,
         client: @client,
-        start_date: @start_date
+        start_date: start_date,
+        end_date: @end_date
       ).call
-    end
-
-    def completed?(security)
-      completed_symbols.include?(
-        security.symbol
-      )
     end
 
     def unavailable?(security)
@@ -115,19 +133,8 @@ module MarketData
       )
     end
 
-    def completed_symbols
-      @state["completed_symbols"] ||= []
-    end
-
     def unavailable_symbols
       @state["unavailable_symbols"] ||= []
-    end
-
-    def mark_completed(security)
-      completed_symbols << security.symbol
-      completed_symbols.uniq!
-
-      save_state
     end
 
     def mark_unavailable(security)
@@ -144,15 +151,16 @@ module MarketData
         @state_path.read
       )
 
-      state["completed_symbols"] ||= []
-      state["unavailable_symbols"] ||= []
-
-      state
+      {
+        "unavailable_symbols" => state.fetch(
+          "unavailable_symbols",
+          []
+        )
+      }
     end
 
     def default_state
       {
-        "completed_symbols" => [],
         "unavailable_symbols" => []
       }
     end

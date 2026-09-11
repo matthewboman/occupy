@@ -51,7 +51,7 @@ module MarketData
       state_file.write(
         JSON.generate(
           {
-            "completed_symbols" => []
+            "unavailable_symbols" => []
           }
         )
       )
@@ -79,28 +79,33 @@ module MarketData
         ["GME", "NVDA"],
         requested_symbols.sort
       )
-
-      state = JSON.parse(
-        File.read(state_file.path)
-      )
-
-      assert_equal(
-        ["GME", "NVDA"],
-        state["completed_symbols"].sort
-      )
     ensure
       state_file&.unlink
     end
 
-    test "skips securities already completed" do
+    test "resumes from the day after the latest market bar" do
       nvda = securities(:nvda)
 
-      requested_symbols = []
+      MarketBar.create!(
+        security: nvda,
+        recorded_at: Time.zone.parse("2024-02-29"),
+        open: 100,
+        high: 110,
+        low: 95,
+        close: 105,
+        volume: 1_000_000
+      )
+
+      requests = []
 
       client = Object.new
 
       client.define_singleton_method(:daily) do |symbol:, from:, to:|
-        requested_symbols << symbol
+        requests << {
+          symbol: symbol,
+          from: from,
+          to: to
+        }
 
         {
           "bars" => []
@@ -114,9 +119,7 @@ module MarketData
       state_file.write(
         JSON.generate(
           {
-            "completed_symbols" => [
-              nvda.symbol
-            ]
+            "unavailable_symbols" => []
           }
         )
       )
@@ -125,14 +128,24 @@ module MarketData
 
       BackfillMentionedSecurities.new(
         client: client,
+        end_date: Date.new(2024, 3, 31),
         request_delay: 0,
         state_path: state_file.path,
         min_mentions: 1
       ).call
 
-      assert_not_includes(
-        requested_symbols,
-        nvda.symbol
+      nvda_request = requests.find do |request|
+        request[:symbol] == nvda.symbol
+      end
+
+      assert_equal(
+        "2024-03-01",
+        nvda_request[:from]
+      )
+
+      assert_equal(
+        "2024-03-31",
+        nvda_request[:to]
       )
     ensure
       state_file&.unlink
@@ -163,7 +176,7 @@ module MarketData
       state_file.write(
         JSON.generate(
           {
-            "completed_symbols" => []
+            "unavailable_symbols" => []
           }
         )
       )
@@ -185,14 +198,8 @@ module MarketData
         state["unavailable_symbols"],
         gme.symbol
       )
-
-      assert_not_includes(
-        state["completed_symbols"],
-        gme.symbol
-      )
     ensure
       state_file&.unlink
     end
-
   end
 end

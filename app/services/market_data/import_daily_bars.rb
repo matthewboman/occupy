@@ -19,14 +19,22 @@ module MarketData
         to:     @end_date.to_s
       )
 
-      bars = data.fetch(
-        "bars"
-      )
+      bars = data.fetch("bars")
 
-      rows = bars.map do |bar|
+      rows = bars.filter_map do |bar|
+        date = Date.parse(bar.fetch("date"))
+
+        unless TradingCalendar.open?(date)
+          Rails.logger.warn(
+            "Rejected market bar for #{@security.symbol} on closed market date #{date}"
+          )
+
+          next
+        end
+
         {
           security_id: @security.id,
-          recorded_at: Time.zone.parse( bar.fetch("date")),
+          recorded_at: Time.zone.parse(bar.fetch("date")),
           open:        bar.fetch("open"),
           high:        bar.fetch("high"),
           low:         bar.fetch("low"),
@@ -41,17 +49,8 @@ module MarketData
 
       MarketBar.upsert_all(
         rows,
-        unique_by: [
-          :security_id,
-          :recorded_at
-        ],
-        update_only: [
-          :open,
-          :high,
-          :low,
-          :close,
-          :volume
-        ]
+        unique_by: [:security_id, :recorded_at],
+        update_only: [:open, :high, :low, :close, :volume]
       )
     end
   end
