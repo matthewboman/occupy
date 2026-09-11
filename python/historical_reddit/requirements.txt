@@ -5,3 +5,5 @@ requests
 huggingface_hub
 modelscope
 zstandard
+scipy
+scikit-learn
