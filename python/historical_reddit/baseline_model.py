@@ -32,6 +32,13 @@ TARGET = "abnormal_range_10d"
 TRAIN_END = pd.Timestamp("2024-01-31")
 TEST_START = pd.Timestamp("2024-02-01")
 
+# The target looks forward 10 trading days.
+# Exclude the final 21 calendar days of each training
+# window so training outcomes cannot overlap the test period.
+PURGE_DAYS = 21
+
+MIN_TRAIN_ROWS = 500
+
 
 def load_dataset(path):
     data = pd.read_csv(
@@ -226,16 +233,22 @@ def clean_dataset(data):
     return data
 
 
-def prepare_dataset(data):
+def usable_dataset(data):
     required = (
         SOCIAL_FEATURES
         + MARKET_FEATURES
         + [TARGET]
     )
 
-    usable = data.dropna(
+    return data.dropna(
         subset=required
     ).copy()
+
+
+def prepare_dataset(data):
+    usable = usable_dataset(
+        data
+    )
 
     train = usable[
         usable["date"] <= TRAIN_END
@@ -248,13 +261,13 @@ def prepare_dataset(data):
     return train, test
 
 
-def evaluate_model(
-    name,
-    model,
+def model_metrics(
     train,
     test,
     features,
 ):
+    model = LinearRegression()
+
     x_train = train[features]
     y_train = train[TARGET]
 
@@ -270,29 +283,42 @@ def evaluate_model(
         x_test
     )
 
-    mae = mean_absolute_error(
-        y_test,
-        predictions,
-    )
+    return {
+        "mae": mean_absolute_error(
+            y_test,
+            predictions,
+        ),
+        "r2": r2_score(
+            y_test,
+            predictions,
+        ),
+        "spearman": spearmanr(
+            y_test,
+            predictions,
+        ).statistic,
+    }
 
-    r2 = r2_score(
-        y_test,
-        predictions,
-    )
 
-    spearman = spearmanr(
-        y_test,
-        predictions,
-    ).statistic
+def evaluate_model(
+    name,
+    train,
+    test,
+    features,
+):
+    metrics = model_metrics(
+        train,
+        test,
+        features,
+    )
 
     print()
     print(name)
     print("-" * len(name))
-    print(f"MAE:      {mae:.4f}")
-    print(f"R²:       {r2:.4f}")
-    print(f"Spearman: {spearman:.4f}")
+    print(f"MAE:      {metrics['mae']:.4f}")
+    print(f"R²:       {metrics['r2']:.4f}")
+    print(f"Spearman: {metrics['spearman']:.4f}")
 
-    return predictions
+    return metrics
 
 
 def print_dataset_summary(
@@ -336,11 +362,11 @@ def print_target_distribution(
     print("TARGET DISTRIBUTION")
     print("-------------------")
 
-    for name, data in [
+    for name, dataset in [
         ("Training", train),
         ("Test", test),
     ]:
-        target = data[TARGET]
+        target = dataset[TARGET]
 
         print()
         print(name)
@@ -361,6 +387,155 @@ def print_target_distribution(
         )
 
 
+def rolling_monthly_validation(data):
+    usable = usable_dataset(
+        data
+    )
+
+    first_date = usable["date"].min()
+    last_date = usable["date"].max()
+
+    month_starts = pd.date_range(
+        start=first_date.to_period("M").start_time,
+        end=last_date.to_period("M").start_time,
+        freq="MS",
+    )
+
+    results = []
+
+    for test_start in month_starts:
+        test_end = (
+            test_start
+            + pd.offsets.MonthEnd(0)
+        )
+
+        train_end = (
+            test_start
+            - pd.Timedelta(days=PURGE_DAYS)
+        )
+
+        train = usable[
+            usable["date"] <= train_end
+        ].copy()
+
+        test = usable[
+            (usable["date"] >= test_start)
+            & (usable["date"] <= test_end)
+        ].copy()
+
+        if len(train) < MIN_TRAIN_ROWS:
+            continue
+
+        if test.empty:
+            continue
+
+        market = model_metrics(
+            train,
+            test,
+            MARKET_FEATURES,
+        )
+
+        social = model_metrics(
+            train,
+            test,
+            SOCIAL_FEATURES,
+        )
+
+        combined = model_metrics(
+            train,
+            test,
+            MARKET_FEATURES + SOCIAL_FEATURES,
+        )
+
+        results.append(
+            {
+                "test_month": test_start.strftime(
+                    "%Y-%m"
+                ),
+                "train_end": train_end.date(),
+                "train_rows": len(train),
+                "test_rows": len(test),
+                "market_spearman": market[
+                    "spearman"
+                ],
+                "social_spearman": social[
+                    "spearman"
+                ],
+                "combined_spearman": combined[
+                    "spearman"
+                ],
+                "social_improvement": (
+                    combined["spearman"]
+                    - market["spearman"]
+                ),
+            }
+        )
+
+    print()
+    print("ROLLING MONTHLY VALIDATION")
+    print("--------------------------")
+    print(
+        f"Purged days before each test month: "
+        f"{PURGE_DAYS}"
+    )
+
+    if not results:
+        print()
+        print(
+            "Not enough data for a rolling "
+            "monthly validation window yet."
+        )
+        return
+
+    result_data = pd.DataFrame(
+        results
+    )
+
+    print()
+    print(
+        result_data.to_string(
+            index=False,
+            float_format=lambda value: (
+                f"{value:.4f}"
+            ),
+        )
+    )
+
+    print()
+    print("ROLLING SUMMARY")
+    print("---------------")
+
+    print(
+        "Average market Spearman:   "
+        f"{result_data['market_spearman'].mean():.4f}"
+    )
+
+    print(
+        "Average social Spearman:   "
+        f"{result_data['social_spearman'].mean():.4f}"
+    )
+
+    print(
+        "Average combined Spearman: "
+        f"{result_data['combined_spearman'].mean():.4f}"
+    )
+
+    print(
+        "Average social improvement: "
+        f"{result_data['social_improvement'].mean():.4f}"
+    )
+
+    wins = (
+        result_data["combined_spearman"]
+        > result_data["market_spearman"]
+    ).sum()
+
+    print(
+        "Combined beats market-only: "
+        f"{wins} / {len(result_data)} months"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -374,7 +549,9 @@ def main():
 
     args = parser.parse_args()
 
-    path = Path(args.input)
+    path = Path(
+        args.input
+    )
 
     if not path.exists():
         raise RuntimeError(
@@ -411,34 +588,29 @@ def main():
         test,
     )
 
-    market_model = LinearRegression()
-
     evaluate_model(
         "MARKET-ONLY LINEAR REGRESSION",
-        market_model,
         train,
         test,
         MARKET_FEATURES,
     )
 
-    social_model = LinearRegression()
-
     evaluate_model(
         "SOCIAL-ONLY LINEAR REGRESSION",
-        social_model,
         train,
         test,
         SOCIAL_FEATURES,
     )
 
-    combined_model = LinearRegression()
-
     evaluate_model(
         "MARKET + SOCIAL LINEAR REGRESSION",
-        combined_model,
         train,
         test,
         MARKET_FEATURES + SOCIAL_FEATURES,
+    )
+
+    rolling_monthly_validation(
+        data
     )
 
 

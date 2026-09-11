@@ -779,3 +779,17 @@ hypothetical options/trading evaluation
 ```
 
 The deterministic baseline comes first so we can later measure whether the LLM actually adds predictive value rather than assuming that it does.
+
+
+# Boards
+r/wallstreetbets -
+r/stocks — broad individual-stock discussion; useful contrast with WSB.
+r/options — directly relevant because your eventual goal includes options behavior.
+r/StockMarket — broader market chatter, often more news/reactive.
+r/pennystocks — useful for extreme attention/volatility cases.
+r/ValueInvesting — slower, fundamentals-driven signal.
+r/SecurityAnalysis — more research-heavy discussion.
+r/Daytrading — short-horizon trading attention.
+r/thetagang — options-selling perspective; potentially different volatility expectations.
+r/smallstreetbets — smaller speculative community, closer in behavior to WSB.
+r/SPACs — historically useful for concentrated speculative attention, especially in earlier periods.

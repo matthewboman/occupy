@@ -35,6 +35,7 @@
 
 /vendor
 
+/data/analysis/
 /data/market_data/
 /data/reddit/
 /data/reddit/temp/
