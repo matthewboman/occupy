@@ -1,12 +1,10 @@
 module MarketData
-  class CalculateSecurityMentionOutcome
+  class CalculateSecurityDailyOutcome
     WINDOW = 10
-    MARKET_CLOSE_HOUR = 16
 
-    def initialize(security_mention:)
-      @security_mention = security_mention
-      @social_post = security_mention.social_post
-      @security = security_mention.security
+    def initialize(security_daily_signal:)
+      @signal = security_daily_signal
+      @security = security_daily_signal.security
     end
 
     def call
@@ -19,21 +17,22 @@ module MarketData
 
       return if entry_price.zero?
 
-      SecurityMentionOutcome.upsert(
+      SecurityDailyOutcome.upsert(
         {
-          security_mention_id: @security_mention.id,
-          market_date:         entry_bar.recorded_at.to_date,
-          price_at_mention:    entry_price,
-          return_1d:           forward_return(bars, entry_price, 1),
-          return_3d:           forward_return(bars, entry_price, 3),
-          return_5d:           forward_return(bars, entry_price, 5),
-          return_10d:          forward_return(bars, entry_price, 10),
-          max_gain_10d:        max_gain(bars, entry_price),
-          max_drawdown_10d:    max_drawdown(bars, entry_price),
-          created_at:          Time.current,
-          updated_at:          Time.current
+          security_id:      @security.id,
+          date:             @signal.date,
+          market_date:      entry_bar.recorded_at.to_date,
+          price_at_signal:  entry_price,
+          return_1d:        forward_return(bars, entry_price, 1),
+          return_3d:        forward_return(bars, entry_price, 3),
+          return_5d:        forward_return(bars, entry_price, 5),
+          return_10d:       forward_return(bars, entry_price, 10),
+          max_gain_10d:     max_gain(bars, entry_price),
+          max_drawdown_10d: max_drawdown(bars, entry_price),
+          created_at:       Time.current,
+          updated_at:       Time.current
         },
-        unique_by: :index_security_mention_outcomes_unique
+        unique_by: [:security_id, :date]
       )
     end
 
@@ -43,23 +42,11 @@ module MarketData
       @security.market_bars
                .where(
                  "recorded_at >= ?",
-                 entry_date.beginning_of_day
+                 @signal.date.beginning_of_day
                )
                .order(:recorded_at)
                .limit(WINDOW + 1)
                .to_a
-    end
-
-    def entry_date
-      posted_at = @social_post.posted_at.in_time_zone(
-        "America/New_York"
-      )
-
-      date = posted_at.to_date
-
-      return date.next_day if posted_at.hour >= MARKET_CLOSE_HOUR
-
-      date
     end
 
     def forward_return(bars, entry_price, days)

@@ -58,6 +58,11 @@ module MarketData
             mark_unavailable(security)
 
             puts "Unavailable #{security.symbol}: #{error.message}"
+          elsif error.status_code == 429
+            puts "Rate limit reached: #{error.message}"
+            puts "Stopping backfill."
+
+            raise
           else
             puts "Failed #{security.symbol}: #{error.message}"
           end
@@ -87,6 +92,7 @@ module MarketData
           "COUNT(DISTINCT security_mentions.social_post_id) >= ?",
           @min_mentions
         )
+        .order(:symbol)
     end
 
     def backfill_security(security)

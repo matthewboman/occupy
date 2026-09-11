@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_10_194911) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_11_133802) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,6 +38,38 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_10_194911) do
     t.datetime "updated_at", null: false
     t.index ["is_active"], name: "index_securities_on_is_active"
     t.index ["symbol"], name: "index_securities_on_symbol", unique: true
+  end
+
+  create_table "security_daily_outcomes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "date", null: false
+    t.date "market_date", null: false
+    t.decimal "max_drawdown_10d", precision: 12, scale: 6
+    t.decimal "max_gain_10d", precision: 12, scale: 6
+    t.decimal "price_at_signal", precision: 18, scale: 6, null: false
+    t.decimal "return_10d", precision: 12, scale: 6
+    t.decimal "return_1d", precision: 12, scale: 6
+    t.decimal "return_3d", precision: 12, scale: 6
+    t.decimal "return_5d", precision: 12, scale: 6
+    t.bigint "security_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["security_id", "date"], name: "index_security_daily_outcomes_on_security_id_and_date", unique: true
+    t.index ["security_id"], name: "index_security_daily_outcomes_on_security_id"
+  end
+
+  create_table "security_daily_signals", force: :cascade do |t|
+    t.decimal "average_score", precision: 12, scale: 4
+    t.integer "comment_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.date "date", null: false
+    t.integer "mention_count", default: 0, null: false
+    t.bigint "security_id", null: false
+    t.integer "submission_count", default: 0, null: false
+    t.integer "total_score", default: 0, null: false
+    t.integer "unique_author_count", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["security_id", "date"], name: "index_security_daily_signals_on_security_id_and_date", unique: true
+    t.index ["security_id"], name: "index_security_daily_signals_on_security_id"
   end
 
   create_table "security_mention_outcomes", force: :cascade do |t|
@@ -89,6 +121,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_10_194911) do
   end
 
   add_foreign_key "market_bars", "securities"
+  add_foreign_key "security_daily_outcomes", "securities"
+  add_foreign_key "security_daily_signals", "securities"
   add_foreign_key "security_mention_outcomes", "security_mentions"
   add_foreign_key "security_mentions", "securities"
   add_foreign_key "security_mentions", "social_posts"

@@ -51,5 +51,64 @@ module MarketData
       assert_equal 17.0, outcome.max_gain_10d.to_f
       assert_equal(-1.0, outcome.max_drawdown_10d.to_f)
     end
+
+    test "uses same day for a mention before market close" do
+      security = securities(:nvda)
+      mention = security_mentions(:nvda_mention)
+
+      mention.social_post.update!(
+        posted_at: Time.zone.parse("2023-12-01 15:00:00 -0500")
+      )
+
+      security.market_bars.delete_all
+
+      security.market_bars.create!(
+        recorded_at: Time.zone.parse("2023-12-01"),
+        open: 100,
+        high: 105,
+        low: 95,
+        close: 102,
+        volume: 1_000_000
+      )
+
+      CalculateSecurityMentionOutcome.new(
+        security_mention: mention
+      ).call
+
+      assert_equal(
+        Date.new(2023, 12, 1),
+        mention.reload.security_mention_outcome.market_date
+      )
+    end
+
+    test "uses next trading day for a mention after market close" do
+      security = securities(:nvda)
+      mention = security_mentions(:nvda_mention)
+
+      mention.social_post.update!(
+        posted_at: Time.zone.parse("2023-12-01 17:00:00 -0500")
+      )
+
+      security.market_bars.delete_all
+
+      security.market_bars.create!(
+        recorded_at: Time.zone.parse("2023-12-04"),
+        open: 100,
+        high: 105,
+        low: 95,
+        close: 102,
+        volume: 1_000_000
+      )
+
+      CalculateSecurityMentionOutcome.new(
+        security_mention: mention
+      ).call
+
+      assert_equal(
+        Date.new(2023, 12, 4),
+        mention.reload.security_mention_outcome.market_date
+      )
+    end
+
   end
 end

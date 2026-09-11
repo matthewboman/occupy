@@ -20,7 +20,7 @@ PROCESSOR = (
 
 BASE_URL = "https://arctic-shift.photon-reddit.com"
 
-REQUEST_DELAY = 2.0
+REQUEST_DELAY = 3.0
 REQUEST_TIMEOUT = 60
 
 LIMIT = 100
