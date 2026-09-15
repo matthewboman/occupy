@@ -6,6 +6,7 @@ module SocialData
 
     def initialize(path:)
       @path = Pathname.new(path)
+      @security_name_index = SocialData::SecurityNameIndex.new
     end
 
     def call
@@ -71,8 +72,14 @@ module SocialData
         external_id: external_ids
       ).find_each do |social_post|
         ExtractSecurityMentions.new(
-          social_post: social_post
+          social_post: social_post,
+          security_name_index: @security_name_index
         ).call
+
+        social_post.update_column(
+          :security_mentions_version,
+          SocialData::ExtractAllSecurityMentions::EXTRACTION_VERSION
+        )
       end
     end
   end

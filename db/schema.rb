@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_11_200531) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_14_161533) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -93,6 +93,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_11_200531) do
 
   create_table "security_mentions", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.string "match_type"
+    t.string "matched_text"
     t.bigint "security_id", null: false
     t.bigint "social_post_id", null: false
     t.datetime "updated_at", null: false
@@ -110,6 +112,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_11_200531) do
     t.datetime "posted_at", null: false
     t.string "record_type", default: "submission", null: false
     t.integer "score"
+    t.integer "security_mentions_version"
     t.string "source", null: false
     t.string "submission_external_id"
     t.string "subreddit"
